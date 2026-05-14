@@ -3,7 +3,7 @@
 자율주행 차량 센서 데이터 수신 → 저장 서버
 
 ```
-daq-edge (차량 최대 12대)
+daq-edge (차량 최대 15대)
     ↓ Kafka (v.telemetry / v.sensor)
 daq-server
     ├─ Kafka Broker  (192.168.1.81)
