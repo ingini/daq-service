@@ -1,0 +1,105 @@
+---
+# ── Telemetry Consumer ────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-telemetry
+  namespace: daq
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: consumer-telemetry
+  template:
+    metadata:
+      labels:
+        app: consumer-telemetry
+    spec:
+      nodeSelector:
+        daq-role: consumer
+      containers:
+        - name: consumer-telemetry
+          image: daq-consumer:latest
+          env:
+            - name: CONSUMER_TYPE
+              value: "telemetry"
+          envFrom:
+            - configMapRef:
+                name: consumer-config
+            - secretRef:
+                name: consumer-secret
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "0.5"
+            limits:
+              memory: "2Gi"
+              cpu: "2"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import os; os.kill(1, 0)"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+# ── Sensor Consumer ───────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: consumer-sensor
+  namespace: daq
+spec:
+  replicas: 8       # v.sensor 파티션 16개 → pod당 2파티션 담당
+  selector:
+    matchLabels:
+      app: consumer-sensor
+  template:
+    metadata:
+      labels:
+        app: consumer-sensor
+    spec:
+      nodeSelector:
+        daq-role: consumer
+      containers:
+        - name: consumer-sensor
+          image: daq-consumer:latest
+          env:
+            - name: CONSUMER_TYPE
+              value: "sensor"
+          envFrom:
+            - configMapRef:
+                name: consumer-config
+            - secretRef:
+                name: consumer-secret
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "1"
+            limits:
+              memory: "4Gi"
+              cpu: "4"
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import os; os.kill(1, 0)"]
+            initialDelaySeconds: 30
+            periodSeconds: 30
+---
+# ── HPA - sensor consumer ─────────────────────────────────
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: consumer-sensor-hpa
+  namespace: daq
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: consumer-sensor
+  minReplicas: 4
+  maxReplicas: 16   # v.sensor 파티션 수 상한
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70

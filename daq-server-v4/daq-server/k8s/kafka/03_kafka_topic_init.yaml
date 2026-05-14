@@ -1,0 +1,43 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-topic-init
+  namespace: daq
+spec:
+  ttlSecondsAfterFinished: 300
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: topic-init
+          image: confluentinc/cp-kafka:7.6.0
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              BROKER="kafka-0.kafka-headless.daq.svc.cluster.local:9092"
+
+              echo "[topic-init] v.telemetry 생성"
+              kafka-topics --create \
+                --bootstrap-server $BROKER \
+                --topic v.telemetry \
+                --partitions 8 \
+                --replication-factor 1 \
+                --config retention.ms=86400000 \
+                --config max.message.bytes=1048576 \
+                --if-not-exists
+
+              echo "[topic-init] v.sensor 생성"
+              kafka-topics --create \
+                --bootstrap-server $BROKER \
+                --topic v.sensor \
+                --partitions 16 \
+                --replication-factor 1 \
+                --config retention.ms=86400000 \
+                --config max.message.bytes=10485760 \
+                --if-not-exists
+
+              echo "[topic-init] 토픽 확인"
+              kafka-topics --list --bootstrap-server $BROKER
+              kafka-topics --describe --bootstrap-server $BROKER

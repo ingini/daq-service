@@ -1,0 +1,5 @@
+confluent-kafka==2.3.0
+pyarrow==15.0.0
+minio==7.2.5
+mcap==1.1.1
+protobuf==4.25.3
